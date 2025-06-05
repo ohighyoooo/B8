@@ -5,26 +5,26 @@ using System.Collections;
 public class P2Controler : MonoBehaviour
 {
     public float moveSpeed = 20f;
-    public float knockbackDistance = 5f;
-    public float knockbackDuration = 0.5f;
-
     private Rigidbody rb;
-    private Animator animator;
     public P2ProximityDetector P2proximity;
 
     private bool isPunching = false;
     private bool isBeingKnockedBack = false;
+    private bool isStunned = false;
+
+    private Coroutine knockbackCoroutine;
+    private Animator animator;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        animator = GetComponent<Animator>();
         P2proximity = GetComponentInChildren<P2ProximityDetector>();
+        animator = GetComponent<Animator>();
     }
 
     void Update()
     {
-        if (!isBeingKnockedBack && !isPunching && Input.GetKeyDown(KeyCode.RightShift))
+        if (!isStunned && !isBeingKnockedBack && !isPunching && Input.GetKeyDown(KeyCode.RightShift))
         {
             if (P2proximity.isPlayer1Nearby)
             {
@@ -40,11 +40,15 @@ public class P2Controler : MonoBehaviour
                 }
             }
 
-            animator.SetTrigger("Punch");
-            StartCoroutine(PunchCooldown(animator.GetCurrentAnimatorStateInfo(0).length));
+            if (animator != null)
+            {
+                animator.ResetTrigger("GetHit");
+                animator.SetTrigger("Punch");
+                StartCoroutine(PunchCooldown());
+            }
         }
 
-        if (!isBeingKnockedBack)
+        if (!isStunned && !isBeingKnockedBack)
         {
             HandleMovement();
         }
@@ -70,20 +74,21 @@ public class P2Controler : MonoBehaviour
         }
     }
 
-    IEnumerator PunchCooldown(float duration)
+    IEnumerator PunchCooldown()
     {
         isPunching = true;
-        yield return new WaitForSeconds(duration);
+        yield return new WaitForSeconds(0.6f);
         isPunching = false;
     }
 
     public void KnockbackFrom(Vector3 sourcePosition)
     {
-        if (!isBeingKnockedBack)
-        {
-            StopAllCoroutines(); // 結束 Punch 動畫等
-            StartCoroutine(KnockbackRoutine(sourcePosition));
-        }
+        if (isStunned) return;
+
+        if (knockbackCoroutine != null)
+            StopCoroutine(knockbackCoroutine);
+
+        knockbackCoroutine = StartCoroutine(KnockbackRoutine(sourcePosition));
     }
 
     IEnumerator KnockbackRoutine(Vector3 sourcePosition)
@@ -91,8 +96,11 @@ public class P2Controler : MonoBehaviour
         isBeingKnockedBack = true;
         isPunching = false;
 
-        animator.ResetTrigger("Punch"); // 終止攻擊動畫
-        animator.SetTrigger("GetHit");  // 播放被擊退動畫
+        if (animator != null)
+        {
+            animator.ResetTrigger("Punch");
+            animator.SetTrigger("GetHit");
+        }
 
         Vector3 direction = (transform.position - sourcePosition).normalized;
         direction.y = 0;
@@ -100,17 +108,50 @@ public class P2Controler : MonoBehaviour
 
         float elapsed = 0f;
         Vector3 start = transform.position;
-        Vector3 target = transform.position + direction * knockbackDistance;
+        Vector3 target = transform.position + direction * 5f;
 
-        while (elapsed < knockbackDuration)
+        while (elapsed < 0.5f)
         {
-            transform.position = Vector3.Lerp(start, target, elapsed / knockbackDuration);
-            Debug.Log("無敵幀");
+            if (isStunned) yield break;
+            transform.position = Vector3.Lerp(start, target, elapsed / 0.5f);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         transform.position = target;
         isBeingKnockedBack = false;
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Wall"))
+        {
+            if (isBeingKnockedBack || !isStunned)
+            {
+                Debug.Log("P2 碰到牆！強制暈眩傳送");
+                if (knockbackCoroutine != null)
+                    StopCoroutine(knockbackCoroutine);
+
+                StartCoroutine(StunAndRespawn());
+            }
+        }
+    }
+
+    IEnumerator StunAndRespawn()
+    {
+        isBeingKnockedBack = false;
+        isPunching = false;
+        isStunned = true;
+
+        if (animator != null)
+        {
+            animator.ResetTrigger("Punch");
+            animator.ResetTrigger("GetHit");
+        }
+
+        yield return new WaitForSeconds(1.5f);
+        transform.position = new Vector3(20f, 0.98f, 21.9f); // 可以自訂為 P2 的復位位置
+
+        isStunned = false;
     }
 }
