@@ -5,8 +5,14 @@ public class P2ProximityDetector : MonoBehaviour
     public bool isPlayer1Nearby = false;
     public GameObject targetPlayer;
 
+    public GameObject nearItem;
+
     void OnTriggerEnter(Collider other)
     {
+        if (other.CompareTag("SeaFood") || other.CompareTag("Desert"))
+        {
+            nearItem = other.gameObject;
+        }
         if (other.CompareTag("Player1"))
         {
             isPlayer1Nearby = true;
@@ -17,6 +23,10 @@ public class P2ProximityDetector : MonoBehaviour
 
     void OnTriggerExit(Collider other)
     {
+        if (nearItem == other.gameObject)
+        {
+            nearItem = null;
+        }
         if (other.CompareTag("Player1"))
         {
             isPlayer1Nearby = false;
