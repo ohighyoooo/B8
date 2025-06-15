@@ -6,11 +6,11 @@ public class NetworkPlayer : MonoBehaviour
     Rigidbody rigidbody3d;
     [SerializeField]
     ConfigurableJoint mainJoint;
+    public float maxSpeed = 3;
 
     Vector2 moveInputVector = Vector2.zero;
 
     bool isJumpButtonPress = false;
-    float maxSpeed = 3;
     bool isGrounded = false;
 
     RaycastHit[] raycastHits = new RaycastHit[10];
@@ -49,15 +49,15 @@ public class NetworkPlayer : MonoBehaviour
         }
 
         if (!isGrounded)
-            rigidbody3d.AddForce(Vector3.down * 50);
+            rigidbody3d.AddForce(Vector3.down * 200);
 
-        float inputMagnitued = moveInputVector.magnitude;// magnitude = 規模
+        float inputMagnitued = moveInputVector.magnitude;// input = 輸入，magnitude = 規模
 
         if (inputMagnitued != 0)
         {
             Quaternion desireDirection = Quaternion.LookRotation(new Vector3(moveInputVector.x * -1, 0, moveInputVector.y), transform.up);
 
-            mainJoint.targetRotation = Quaternion.RotateTowards(mainJoint.targetRotation, desireDirection, Time.fixedDeltaTime * 6000);
+            mainJoint.targetRotation = Quaternion.RotateTowards(mainJoint.targetRotation, desireDirection, Time.fixedDeltaTime * 3000);
 
             Vector3 localVelocifyVersusForward = transform.forward * Vector3.Dot(transform.forward, rigidbody3d.velocity);
 
@@ -65,15 +65,15 @@ public class NetworkPlayer : MonoBehaviour
 
             if (localForwardVelocity < maxSpeed)
             {
-                rigidbody3d.AddForce(transform.forward * inputMagnitued * 300);
+                rigidbody3d.AddForce(transform.forward * inputMagnitued * 600);
             }
         }
 
         if (isGrounded && isJumpButtonPress)
         {
-            rigidbody3d.AddForce(Vector3.up * 200, ForceMode.Impulse);
+            rigidbody3d.AddForce(Vector3.up * 500, ForceMode.Impulse);
 
             isJumpButtonPress = false;
         }
-    }
+    }//AddForce讓rigidbody3d前進， Quaternion.LookRotation和Quaternion.RotateTowards讓mainJoint旋轉，要改移動的話從AddForce和Quaternion程式碼改數字
 }
